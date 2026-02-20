@@ -89,10 +89,15 @@ export interface VideoStep extends StepBase {
 
 export interface AdditionalResourcesStep extends StepBase {
   type: "additionalResources";
-  title: string;
   resources: {
     link: string;
     pdf: string;
+    all?: Array<{  // ⭐ ADD THIS OPTIONAL FIELD
+      id: string;
+      name: string;
+      url: string;
+      type: 'link' | 'pdf';
+    }>;
   };
 }
 

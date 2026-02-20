@@ -1,181 +1,212 @@
-import { Box, Typography, Button, Link } from "@mui/material";
-import { AdditionalResourcesStep } from "@/lib/firebase/types";
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import React from 'react';
+import { AdditionalResourcesStep } from '@/lib/firebase/types';
+import { Card, CardContent, Typography, Button, Box, Chip } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
-interface AdditionalResourcesStepProps {
+interface AdditionalResourcesStepViewProps {
   step: AdditionalResourcesStep;
 }
 
-export default function AdditionalResourcesStepView({ step }: AdditionalResourcesStepProps) {
-  const { title, resources } = step;
-  const hasLink = resources?.link && resources.link.trim() !== '';
-  const hasPdf = resources?.pdf && resources.pdf.trim() !== '';
+interface Resource {
+  id: string;
+  name: string;
+  url: string;
+  type: 'link' | 'pdf';
+}
+
+export default function AdditionalResourcesStepView({ step }: AdditionalResourcesStepViewProps) {
+  // Parse resources - handle both old format and new format
+  const getResources = (): Resource[] => {
+    const resources: Resource[] = [];
+    
+    // Check if new format exists (array of resources)
+    if (step.resources?.all && Array.isArray(step.resources.all)) {
+      return step.resources.all as Resource[];
+    }
+    
+    // Fall back to old format (single link and single pdf)
+    if (step.resources?.link) {
+      resources.push({
+        id: 'link-1',
+        name: 'External Link',
+        url: step.resources.link,
+        type: 'link',
+      });
+    }
+    
+    if (step.resources?.pdf) {
+      resources.push({
+        id: 'pdf-1',
+        name: 'PDF Document',
+        url: step.resources.pdf,
+        type: 'pdf',
+      });
+    }
+    
+    return resources;
+  };
+
+  const resources = getResources();
+
+  const handleOpenResource = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const getResourceIcon = (type: 'link' | 'pdf') => {
+    return type === 'pdf' ? (
+      <InsertDriveFileIcon sx={{ fontSize: 40, color: '#ef4444' }} />
+    ) : (
+      <LinkIcon sx={{ fontSize: 40, color: '#3b82f6' }} />
+    );
+  };
+
+  const getResourceColor = (type: 'link' | 'pdf') => {
+    return type === 'pdf' ? '#fee2e2' : '#dbeafe';
+  };
+
+  const getResourceBorderColor = (type: 'link' | 'pdf') => {
+    return type === 'pdf' ? '#fca5a5' : '#93c5fd';
+  };
+
+  if (resources.length === 0) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Typography variant="body1" color="text.secondary">
+          No resources available for this step.
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        width: "80%",
-        p: 4,
-      }}
-    >
-      {/* Title */}
-      <Typography
-        variant="h4"
-        component="h1"
-        sx={{
-          fontSize: "2rem",
-          fontWeight: "bold",
-          textAlign: "center",
-          mb: 3,
-        }}
-      >
-        {title}
-      </Typography>
+    <Box sx={{ width: '100%', maxWidth: '800px', mx: 'auto' }}>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" component="h2" gutterBottom fontWeight="bold">
+          Additional Resources
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {resources.length} resource{resources.length !== 1 ? 's' : ''} available
+        </Typography>
+      </Box>
 
-      {/* Subtitle */}
-      <Typography
-        variant="h5"
-        component="h2"
-        sx={{
-          fontWeight: "bold",
-          textAlign: "center",
-          mb: 4,
-          color: "text.secondary",
-        }}
-      >
-        Additional Learning Resources
-      </Typography>
-
-      {/* Resources Container */}
+      {/* Resources Grid */}
       <Box
         sx={{
-          maxWidth: "800px",
-          mx: "auto",
-          width: "100%",
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+          },
+          gap: 3,
         }}
       >
-        {/* No resources message */}
-        {!hasLink && !hasPdf && (
-          <Box
+        {resources.map((resource, index) => (
+          <Card
+            key={resource.id}
+            elevation={2}
             sx={{
-              textAlign: "center",
-              py: 6,
-              px: 4,
-              backgroundColor: "grey.50",
-              borderRadius: 2,
-              border: "1px dashed",
-              borderColor: "grey.300",
+              backgroundColor: getResourceColor(resource.type),
+              border: `2px solid ${getResourceBorderColor(resource.type)}`,
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6,
+              },
             }}
           >
-            <Typography variant="body1" color="text.secondary">
-              No additional resources available for this step.
-            </Typography>
-          </Box>
-        )}
-
-        {/* Resources List */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {/* External Link */}
-          {hasLink && (
-            <Box
-              sx={{
-                p: 3,
-                borderRadius: 2,
-                backgroundColor: "background.paper",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                  transform: "translateY(-2px)",
-                },
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-                <LinkIcon sx={{ color: "primary.main", fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  External Resource
-                </Typography>
-              </Box>
-              
-              <Typography 
-                variant="body2" 
-                color="text.secondary" 
-                sx={{ mb: 2 }}
+            <CardContent sx={{ p: 3 }}>
+              {/* Icon and Type Badge */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  mb: 2,
+                }}
               >
-                Click below to view this resource in a new tab
+                {getResourceIcon(resource.type)}
+                <Chip
+                  label={resource.type === 'pdf' ? 'PDF' : 'Link'}
+                  size="small"
+                  sx={{
+                    backgroundColor: resource.type === 'pdf' ? '#dc2626' : '#2563eb',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.75rem',
+                  }}
+                />
+              </Box>
+
+              {/* Resource Name */}
+              <Typography
+                variant="h6"
+                component="h3"
+                gutterBottom
+                sx={{
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  minHeight: '48px',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                  mb: 2,
+                }}
+              >
+                {resource.name}
               </Typography>
 
+              {/* Resource Number */}
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mb: 2, display: 'block' }}
+              >
+                Resource {index + 1} of {resources.length}
+              </Typography>
+
+              {/* Open Button */}
               <Button
                 variant="contained"
-                href={resources.link}
-                target="_blank"
-                rel="noopener noreferrer"
+                fullWidth
                 endIcon={<OpenInNewIcon />}
+                onClick={() => handleOpenResource(resource.url)}
                 sx={{
-                  textTransform: "none",
+                  backgroundColor: resource.type === 'pdf' ? '#dc2626' : '#2563eb',
+                  '&:hover': {
+                    backgroundColor: resource.type === 'pdf' ? '#b91c1c' : '#1d4ed8',
+                  },
+                  textTransform: 'none',
                   fontWeight: 600,
-                  px: 3,
                   py: 1.5,
                 }}
               >
-                Open Resource
+                {resource.type === 'pdf' ? 'View PDF' : 'Open Link'}
               </Button>
-            </Box>
-          )}
+            </CardContent>
+          </Card>
+        ))}
+      </Box>
 
-          {/* PDF Link */}
-          {hasPdf && (
-            <Box
-              sx={{
-                p: 3,
-                borderRadius: 2,
-                backgroundColor: "background.paper",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                  transform: "translateY(-2px)",
-                },
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-                <InsertDriveFileIcon sx={{ color: "error.main", fontSize: 28 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  PDF Document
-                </Typography>
-              </Box>
-              
-              <Typography 
-                variant="body2" 
-                color="text.secondary" 
-                sx={{ mb: 2 }}
-              >
-                View or download this PDF document in a new tab
-              </Typography>
-
-              <Button
-                variant="contained"
-                color="error"
-                href={resources.pdf}
-                target="_blank"
-                rel="noopener noreferrer"
-                endIcon={<OpenInNewIcon />}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 600,
-                  px: 3,
-                  py: 1.5,
-                }}
-              >
-                View PDF
-              </Button>
-            </Box>
-          )}
-        </Box>
+      {/* Helper Tip */}
+      <Box
+        sx={{
+          mt: 4,
+          p: 2,
+          backgroundColor: '#f0f9ff',
+          borderRadius: 1,
+          border: '1px solid #bfdbfe',
+        }}
+      >
+        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <span style={{ fontSize: '1.2rem' }}>💡</span>
+          <span>
+            Click on any resource card to open it in a new tab. PDFs will open in your browser's PDF viewer.
+          </span>
+        </Typography>
       </Box>
     </Box>
   );
