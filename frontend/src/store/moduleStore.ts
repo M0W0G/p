@@ -131,6 +131,8 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
         })
       );
 
+      // Sort by order to ensure correct display order
+      modulesWithSteps.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       set({ modules: modulesWithSteps, isLoading: false });
       console.log('Successfully loaded modules with steps');
     } catch (error: any) {
@@ -467,38 +469,25 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
    * Updates the order field of modules in Firebase and local state.
    */
   reorderModules: async (moduleIds: string[]) => {
-    set({ isLoading: true, error: null });
-    try {
-      const state = get();
+    const state = get();
 
-      // Update order for each module in Firebase
+    // Optimistically update local state immediately (no isLoading to avoid unmounting the grid)
+    const reorderedModules = moduleIds
+      .map((id) => state.modules.find((m) => m.id === id))
+      .filter(Boolean)
+      .map((module, index) => ({ ...module!, order: index + 1 }));
+
+    set({ modules: reorderedModules, error: null });
+
+    // Persist to Firebase in the background
+    try {
       await Promise.all(
         moduleIds.map((moduleId, index) => {
-          return updateModule(moduleId, { order: index });
+          return updateModule(moduleId, { order: index + 1 });
         })
       );
-
-      // Update local state
-      // We need to re-sort the modules array based on the new order
-      const reorderedModules = moduleIds
-        .map((id) => state.modules.find((m) => m.id === id))
-        .filter(Boolean)
-        .map((module, index) => ({ ...module!, order: index }));
-
-      // There might be modules not included in the reordering (though unlikely in this UI),
-      // so we should keep them but maybe append them? 
-      // For now, let's assume all displayed modules are being reordered or at least 
-      // the reordered list contains the active view. 
-      // Actually, a safer approach for local state is to map over existing modules and update their order if they are in the list.
-      // But re-constructing the array from the ID list ensures the order is correct in the UI immediately.
-
-      set((state) => ({
-        modules: reorderedModules,
-        isLoading: false,
-      }));
-
     } catch (error: any) {
-      set({ error: error.message, isLoading: false });
+      set({ error: error.message });
       console.error('Error reordering modules:', error);
     }
   },

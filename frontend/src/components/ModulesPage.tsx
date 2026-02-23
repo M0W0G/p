@@ -63,7 +63,7 @@ function SortableModuleCard({ module, userId, onEdit, onDelete }: {
       {/* Drag Handle & Order Badge */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
         <span className="bg-gray-100 text-gray-600 text-xs font-mono px-2 py-1 rounded">
-          #{typeof module.order === 'number' ? module.order + 1 : '?'}
+          #{typeof module.order === 'number' ? module.order : '?'}
         </span>
         <div
           {...attributes}
@@ -136,7 +136,9 @@ export default function ModulesPage() {
 
   // ===== DND SENSORS =====
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -287,6 +289,7 @@ export default function ModulesPage() {
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
+
           >
             <SortableContext
               items={modules.map(m => m.id)}

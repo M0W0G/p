@@ -49,8 +49,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
       setSteps(module.steps || []);
     } else {
       // For new modules, find the next available order number
-      const existingOrders = modules.map(m => m.order || 0).filter(o => o > 0);
-      const nextOrder = existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 1;
+      const nextOrder = modules.length + 1;
       setFormData({
         title: "",
         description: "",
