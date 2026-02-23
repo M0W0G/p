@@ -235,7 +235,7 @@ export default function ModulesPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Module Management</h1>
-          <p className="text-gray-600">Manage your learning modules from Firestore</p>
+          <p className="text-gray-600">Manage and organize learning modules</p>
           <p className="text-xs text-gray-400 mt-1">Logged in as: {user.email || user.uid}</p>
         </div>
 
