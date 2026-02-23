@@ -18,6 +18,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
     updateModuleData,
     deleteStepData,
     reorderSteps,
+    cloneStepData,
   } = useModuleStore();
 
   // Get the latest module data from store
@@ -43,8 +44,11 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
       });
     } else {
       // For new modules, find the next available order number
-      const existingOrders = modules.map(m => m.order || 0).filter(o => o > 0);
-      const nextOrder = existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 1;
+      const existingOrders = modules
+        .map((m) => m.order || 0)
+        .filter((o) => o > 0);
+      const nextOrder =
+        existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 1;
       setFormData({
         title: "",
         description: "",
@@ -60,11 +64,13 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
     }
 
     // Check for duplicate order numbers
-    const existingModuleWithOrder = modules.find(m =>
-      m.order === formData.order && m.id !== module?.id
+    const existingModuleWithOrder = modules.find(
+      (m) => m.order === formData.order && m.id !== module?.id,
     );
     if (existingModuleWithOrder) {
-      alert(`Order number ${formData.order} is already used by "${existingModuleWithOrder.title}". Please choose a different number.`);
+      alert(
+        `Order number ${formData.order} is already used by "${existingModuleWithOrder.title}". Please choose a different number.`,
+      );
       return;
     }
 
@@ -82,7 +88,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
         await createNewModule(
           formData.title.trim(),
           formData.description.trim(),
-          formData.order
+          formData.order,
         );
       }
       onClose();
@@ -98,6 +104,11 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
     if (!module || !confirm("Are you sure you want to delete this step?"))
       return;
     await deleteStepData(module.id, stepId);
+  };
+
+  const handleCloneStep = async (stepId: string) => {
+    if (!module) return;
+    await cloneStepData(module.id, stepId);
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -187,6 +198,22 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
               strokeLinejoin="round"
               strokeWidth={2}
               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
+        );
+      case "poll":
+        return (
+          <svg
+            className="w-5 h-5 text-orange-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
             />
           </svg>
         );
@@ -281,7 +308,10 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
                 min="1"
                 value={formData.order}
                 onChange={(e) =>
-                  setFormData({ ...formData, order: parseInt(e.target.value) || 1 })
+                  setFormData({
+                    ...formData,
+                    order: parseInt(e.target.value) || 1,
+                  })
                 }
                 disabled={isSaving}
                 className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
@@ -360,9 +390,9 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
                           {step.type === "freeResponse"
                             ? "Free Response"
                             : step.type === "additionalResources"
-                            ? "Additional Resources"
-                            : step.type}
-                      </p>
+                              ? "Additional Resources"
+                              : step.type}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
@@ -380,6 +410,25 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
                               strokeLinejoin="round"
                               strokeWidth={2}
                               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleCloneStep(step.id)}
+                          title="Clone step"
+                          className="text-gray-400 hover:text-green-600 transition-colors duration-200"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
                             />
                           </svg>
                         </button>
@@ -430,8 +479,8 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
             {isSaving
               ? "Saving..."
               : module
-              ? "Update Module"
-              : "Create Module"}
+                ? "Update Module"
+                : "Create Module"}
           </button>
         </div>
       </div>

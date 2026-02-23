@@ -1,6 +1,5 @@
 import { Timestamp } from "firebase/firestore";
 
-
 // User
 
 export interface User {
@@ -17,6 +16,7 @@ export interface UserProgress {
   completedStepIds: string[];
   lastViewedAt: Timestamp;
   quizScores: { [stepId: string]: number };
+  pollVotes: { [stepId: string]: string[] };
   startedAt: Timestamp | Date;
   completedAt: Timestamp | Date | null;
 }
@@ -43,6 +43,9 @@ export interface QuizQuestion {
   prompt: string;
   choices: string[];
   correctIndex: number;
+  // Optional explanations for each choice (aligned by index with choices array)
+  choiceExplanations?: (string | null)[];
+  // Legacy: question-level explanation (kept for backward compatibility)
   explanation?: string;
 }
 
@@ -50,6 +53,13 @@ export interface QuizQuestion {
 export interface Flashcard {
   front: string;
   back: string;
+}
+
+// Poll Option (needed by PollStep)
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: number;
 }
 
 // Base Step Interface
@@ -65,7 +75,13 @@ export interface StepBase {
   updatedAt: Date;
 }
 
-export type StepType = "video" | "quiz" | "flashcards" | "freeResponse" | 'additionalResources';
+export type StepType =
+  | "video"
+  | "quiz"
+  | "flashcards"
+  | "freeResponse"
+  | "poll"
+  | "additionalResources";
 
 // Subcollection name mapping
 export const STEP_COLLECTIONS = {
@@ -73,10 +89,11 @@ export const STEP_COLLECTIONS = {
   quiz: "quizzes",
   flashcards: "flashcards",
   freeResponse: "freeResponses",
+  poll: "polls",
   additionalResources: "additionalResources",
 } as const;
 
-export type StepCollectionName = typeof STEP_COLLECTIONS[StepType];
+export type StepCollectionName = (typeof STEP_COLLECTIONS)[StepType];
 
 // Specific Step Interfaces
 
@@ -92,11 +109,12 @@ export interface AdditionalResourcesStep extends StepBase {
   resources: {
     link: string;
     pdf: string;
-    all?: Array<{  // ⭐ ADD THIS OPTIONAL FIELD
+    all?: Array<{
+      // ⭐ ADD THIS OPTIONAL FIELD
       id: string;
       name: string;
       url: string;
-      type: 'link' | 'pdf';
+      type: "link" | "pdf";
     }>;
   };
 }
@@ -121,8 +139,21 @@ export interface FreeResponseStep extends StepBase {
   maxLength?: number;
 }
 
+export interface PollStep extends StepBase {
+  type: "poll";
+  question: string;
+  options: PollOption[];
+  allowMultipleChoice: boolean;
+}
+
 // Step type used throughout the app
-export type Step = VideoStep | QuizStep | FlashcardsStep | FreeResponseStep | AdditionalResourcesStep;
+export type Step =
+  | VideoStep
+  | QuizStep
+  | FlashcardsStep
+  | FreeResponseStep
+  | PollStep
+  | AdditionalResourcesStep;
 
 // Journal
 export interface JournalEntry {
@@ -132,5 +163,5 @@ export interface JournalEntry {
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
   moduleId?: string; // optional - for future module association
-  stepId?: string;   // optional - for future step association
+  stepId?: string; // optional - for future step association
 }
