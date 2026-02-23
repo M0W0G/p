@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { StepType } from "@/lib/firebase/types";
+import { Step, StepType } from "@/lib/firebase/types";
 import VideoEditorModal from "./step-editors/VideoEditorModal";
 import AdditionalResourcesEditorModal from "./step-editors/AdditionalResourcesEditorModal";
 import FlashcardsEditorModal from "./step-editors/FlashcardsEditorModal";
@@ -12,6 +12,7 @@ import PollEditorModal from "./step-editors/PollEditorModal";
 interface AddFeatureModalProps {
   moduleId: string;
   onClose: () => void;
+  onSave: (step: Step) => void;
 }
 
 const stepTypes: {
@@ -145,6 +146,7 @@ const stepTypes: {
 export default function AddFeatureModal({
   moduleId,
   onClose,
+  onSave,
 }: AddFeatureModalProps) {
   const [selectedType, setSelectedType] = useState<StepType | null>(null);
 
@@ -156,6 +158,7 @@ export default function AddFeatureModal({
             moduleId={moduleId}
             onClose={onClose}
             onBack={() => setSelectedType(null)}
+            onSave={onSave}
           />
         );
       case "flashcards":
@@ -164,6 +167,7 @@ export default function AddFeatureModal({
             moduleId={moduleId}
             onClose={onClose}
             onBack={() => setSelectedType(null)}
+            onSave={onSave}
           />
         );
       case "quiz":
@@ -172,6 +176,7 @@ export default function AddFeatureModal({
             moduleId={moduleId}
             onClose={onClose}
             onBack={() => setSelectedType(null)}
+            onSave={onSave}
           />
         );
       case "freeResponse":
@@ -180,6 +185,7 @@ export default function AddFeatureModal({
             moduleId={moduleId}
             onClose={onClose}
             onBack={() => setSelectedType(null)}
+            onSave={onSave}
           />
         );
       case "poll":
@@ -188,6 +194,7 @@ export default function AddFeatureModal({
             moduleId={moduleId}
             onClose={onClose}
             onBack={() => setSelectedType(null)}
+            onSave={onSave}
           />
         );
       case "additionalResources":
