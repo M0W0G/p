@@ -73,10 +73,10 @@ export default function Navbar() {
             <Image
               src="/philosophy_logo_white_horizontal.png"
               alt="UNC Parr Center for Ethics"
-              width={400}
-              height={60}
+              width={650}
+              height={300}
               priority
-              style={{ height: "auto", maxHeight: "60px" }}
+              style={{ width: "auto", maxHeight: "60px" }}
             />
           </Box>
 
