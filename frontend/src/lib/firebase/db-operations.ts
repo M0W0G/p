@@ -97,6 +97,7 @@ export const deleteModule = async (
       "quiz",
       "flashcards",
       "freeResponse",
+      "additionalResources",
       "poll",
     ];
 
@@ -143,6 +144,7 @@ export const getStepsByModuleId = async (moduleId: string): Promise<Step[]> => {
     "quiz",
     "flashcards",
     "freeResponse",
+    "additionalResources",
     "poll",
   ];
 

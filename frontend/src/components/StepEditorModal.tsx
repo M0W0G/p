@@ -6,6 +6,7 @@ import QuizEditorModal from "./step-editors/QuizEditorModal";
 import FlashcardsEditorModal from "./step-editors/FlashcardsEditorModal";
 import FreeResponseEditorModal from "./step-editors/FreeResponseEditorModal";
 import PollEditorModal from "./step-editors/PollEditorModal";
+import AdditionalResourcesEditorModal from "./step-editors/AdditionalResourcesEditorModal";
 
 interface StepEditorModalProps {
   moduleId: string;
@@ -33,6 +34,15 @@ export default function StepEditorModal({
           onClose={onClose}
           onBack={handleBack}
           onSave={onSave}
+        />
+      );
+    case "additionalResources":
+      return (
+        <AdditionalResourcesEditorModal
+          moduleId={moduleId}
+          step={step}
+          onClose={onClose}
+          onBack={handleBack}
         />
       );
     case "quiz":

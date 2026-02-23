@@ -32,7 +32,6 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
 
   // Local state for steps (draft)
   const [steps, setSteps] = useState<Step[]>([]);
-
   const [isSaving, setIsSaving] = useState(false);
   const [showAddStepModal, setShowAddStepModal] = useState(false);
   const [editingStep, setEditingStep] = useState<Step | null>(null);
@@ -57,11 +56,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
       });
       setSteps([]);
     }
-  }, [module, modules]); // modules dependency is okay if we want to update if store changes, but for draft we might want to isolate. 
-  // However, `module` changes when store updates, so keeping it is fine.
-  // Actually, if we are editing, we might not want to overwrite local changes if `module` updates from background?
-  // But here we only set on mount or if module ID changes essentially (or if module object ref changes).
-  // Ideally we should only set initial state once. But for now this is fine.
+  }, [module, modules]);
 
   const handleSave = async () => {
     if (!formData.title.trim()) {
@@ -70,11 +65,16 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
     }
 
     // Check for duplicate order numbers
-    const existingModuleWithOrder = modules.find(m =>
-      m.order === formData.order && m.id !== module?.id
+    const existingModuleWithOrder = modules.find(
+      (m) => m.order === formData.order && m.id !== module?.id,
     );
+
     if (existingModuleWithOrder) {
-      await showAlert("Validation Error", `Order number ${formData.order} is already used by "${existingModuleWithOrder.title}". Please choose a different number.`, "error");
+      await showAlert(
+        "Validation Error",
+        `Order number ${formData.order} is already used by "${existingModuleWithOrder.title}". Please choose a different number.`,
+        "error"
+      );
       return;
     }
 
@@ -89,7 +89,6 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
         },
         steps
       );
-
       onClose();
     } catch (error) {
       console.error("Error saving module:", error);
@@ -100,28 +99,24 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
   };
 
   const handleDeleteStep = async (stepId: string) => {
-    const confirmed = await showConfirm("Delete Step", "Are you sure you want to delete this step?");
+    const confirmed = await showConfirm(
+      "Delete Step",
+      "Are you sure you want to delete this step?"
+    );
     if (!confirmed) return;
 
     // Update local state only
-    setSteps(prev => prev.filter(s => s.id !== stepId));
+    setSteps((prev) => prev.filter((s) => s.id !== stepId));
   };
 
   const handleCloneStep = async (stepId: string) => {
-    const stepToClone = steps.find(s => s.id === stepId);
+    const stepToClone = steps.find((s) => s.id === stepId);
     if (!stepToClone) return;
 
     // Clone locally
     const { id, createdAt, updatedAt, ...clonedData } = stepToClone;
-    // We need a temporary ID for the new step so keys work
-    const tempId = `temp-${Date.now()}`;
-    // Actually, we should probably generate a real UUID if possible, or just let the backend handle ID creation on save.
-    // But React needs a key.
 
-    // Import uuid if needed or just use random string
-    // Let's use a simple random string for now as it will be replaced on save/create if logic handles it.
-    // Wait, our `saveModuleWithSteps` treats existing IDs as updates. New IDs as create?
-    // It filters existing via `selectedModule.steps`. So purely new random ID is fine, it won't be found in existing steps.
+    const tempId = `temp-${Date.now()}`;
 
     const newStep = {
       ...clonedData,
@@ -130,9 +125,9 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
       updatedAt: new Date(),
       createdAt: new Date(),
       order: steps.length,
-    } as Step; // Cast to Step (temp ID is string)
+    } as Step;
 
-    setSteps(prev => [...prev, newStep]);
+    setSteps((prev) => [...prev, newStep]);
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -161,9 +156,9 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
 
   // New handler for saving steps from modals
   const handleStepSave = (savedStep: Step) => {
-    setSteps(prev => {
+    setSteps((prev) => {
       // Check if updating existing
-      const index = prev.findIndex(s => s.id === savedStep.id);
+      const index = prev.findIndex((s) => s.id === savedStep.id);
       if (index >= 0) {
         const newSteps = [...prev];
         newSteps[index] = savedStep;
@@ -179,121 +174,67 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
     switch (type) {
       case "video":
         return (
-          <svg
-            className="w-5 h-5 text-red-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-            />
+          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
       case "flashcards":
         return (
-          <svg
-            className="w-5 h-5 text-blue-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-            />
+          <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
         );
       case "quiz":
         return (
-          <svg
-            className="w-5 h-5 text-green-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
+          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
       case "freeResponse":
         return (
-          <svg
-            className="w-5 h-5 text-purple-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            />
+          <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
         );
       case "poll":
         return (
-          <svg
-            className="w-5 h-5 text-orange-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
+          <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        );
+      case "additionalResources":
+        return (
+          <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
           </svg>
         );
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-xl font-bold text-gray-900">
             {module ? "Edit Module" : "Create New Module"}
           </h2>
           <button
             onClick={onClose}
-            disabled={isSaving}
-            className="text-gray-400 hover:text-gray-600 transition-colors duration-200 disabled:opacity-50"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Module Details */}
-          <div className="mb-8">
-            <div className="mb-4">
+          <div className="space-y-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Module Title *
               </label>
@@ -308,7 +249,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
                 placeholder="Enter module title"
               />
             </div>
-            <div className="mb-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description
               </label>
@@ -332,7 +273,10 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
                 min="1"
                 value={formData.order}
                 onChange={(e) =>
-                  setFormData({ ...formData, order: parseInt(e.target.value) || 1 })
+                  setFormData({
+                    ...formData,
+                    order: parseInt(e.target.value) || 1,
+                  })
                 }
                 disabled={isSaving}
                 className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
@@ -344,8 +288,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
             </div>
           </div>
 
-          {/* Steps Section - Show for both new and existing modules if we have steps */}
-          {/* In draft mode, we allow adding steps even to new modules! */}
+          {/* Steps Section */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Steps</h3>
@@ -372,7 +315,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
 
             {steps.length === 0 ? (
               <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200">
-                <p>No steps yet. Click Add Step to get started.</p>
+                <p>No steps yet. Click &quot;Add Step&quot; to get started.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -410,7 +353,9 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
                       <p className="text-xs text-gray-500 capitalize">
                         {step.type === "freeResponse"
                           ? "Free Response"
-                          : step.type}
+                          : step.type === "additionalResources"
+                            ? "Additional Resources"
+                            : step.type}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -506,7 +451,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
       {/* Add Step Modal */}
       {showAddStepModal && (
         <AddFeatureModal
-          moduleId={module?.id || 'new-module'} // Pass a placeholder ID for new modules if needed, or better, the modal shouldn't depend on it for saving now
+          moduleId={module?.id || "new-module"}
           onClose={() => setShowAddStepModal(false)}
           onSave={handleStepSave}
         />
@@ -515,7 +460,7 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
       {/* Edit Step Modal */}
       {editingStep && (
         <StepEditorModal
-          moduleId={module?.id || 'new-module'}
+          moduleId={module?.id || "new-module"}
           step={editingStep}
           onClose={() => setEditingStep(null)}
           onSave={handleStepSave}

@@ -1,6 +1,5 @@
 import { Timestamp } from "firebase/firestore";
 
-
 // User
 
 export interface User {
@@ -76,7 +75,13 @@ export interface StepBase {
   updatedAt: Date;
 }
 
-export type StepType = "video" | "quiz" | "flashcards" | "freeResponse" | "poll";
+export type StepType =
+  | "video"
+  | "quiz"
+  | "flashcards"
+  | "freeResponse"
+  | "poll"
+  | "additionalResources";
 
 // Subcollection name mapping
 export const STEP_COLLECTIONS = {
@@ -85,9 +90,10 @@ export const STEP_COLLECTIONS = {
   flashcards: "flashcards",
   freeResponse: "freeResponses",
   poll: "polls",
+  additionalResources: "additionalResources",
 } as const;
 
-export type StepCollectionName = typeof STEP_COLLECTIONS[StepType];
+export type StepCollectionName = (typeof STEP_COLLECTIONS)[StepType];
 
 // Specific Step Interfaces
 
@@ -96,6 +102,21 @@ export interface VideoStep extends StepBase {
   youtubeUrl: string;
   thumbnailUrl?: string;
   durationSec?: number;
+}
+
+export interface AdditionalResourcesStep extends StepBase {
+  type: "additionalResources";
+  resources: {
+    link: string;
+    pdf: string;
+    all?: Array<{
+      // ⭐ ADD THIS OPTIONAL FIELD
+      id: string;
+      name: string;
+      url: string;
+      type: "link" | "pdf";
+    }>;
+  };
 }
 
 export interface QuizStep extends StepBase {
@@ -126,7 +147,13 @@ export interface PollStep extends StepBase {
 }
 
 // Step type used throughout the app
-export type Step = VideoStep | QuizStep | FlashcardsStep | FreeResponseStep | PollStep;
+export type Step =
+  | VideoStep
+  | QuizStep
+  | FlashcardsStep
+  | FreeResponseStep
+  | PollStep
+  | AdditionalResourcesStep;
 
 // Journal
 export interface JournalEntry {
@@ -136,5 +163,5 @@ export interface JournalEntry {
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
   moduleId?: string; // optional - for future module association
-  stepId?: string;   // optional - for future step association
+  stepId?: string; // optional - for future step association
 }
