@@ -132,9 +132,11 @@ export interface SortingCard {
 export interface SortingStep extends StepBase {
   type: "sorting";
   prompt: string;
-  buckets: SortingBucket[];
-  cards: SortingCard[];
+  buckets: { id: string; label: string }[];
+  cards: { id: string; text: string }[];
+  answerKey?: Record<string, string>;
 }
+
 export interface PollStep extends StepBase {
   type: "poll";
   question: string;
