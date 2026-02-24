@@ -9,6 +9,7 @@ import {
   Typography,
   Divider,
   IconButton,
+  MenuItem,
 } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import AddIcon from "@mui/icons-material/Add";
@@ -56,6 +57,9 @@ export default function SortingEditorModal({
     { id: makeId("card"), text: "" },
   ]);
 
+  // ✅ answer key (cardId -> bucketId)
+  const [answerKey, setAnswerKey] = useState<Record<string, string>>({});
+
   const [touched, setTouched] = useState(false);
 
   // ✅ Prefill when editing
@@ -78,7 +82,27 @@ export default function SortingEditorModal({
         text: c.text,
       }))
     );
+
+    setAnswerKey(step.answerKey ?? {});
   }, [step]);
+
+  // ✅ Keep answerKey consistent if cards/buckets are added/removed
+  useEffect(() => {
+    const bucketIds = new Set(buckets.map((b) => b.id));
+
+    setAnswerKey((prev) => {
+      const next: Record<string, string> = {};
+
+      for (const c of cards) {
+        const chosen = prev[c.id];
+        if (chosen && bucketIds.has(chosen)) {
+          next[c.id] = chosen;
+        }
+      }
+
+      return next;
+    });
+  }, [cards, buckets]);
 
   // Validation
   const errors = useMemo(() => {
@@ -94,6 +118,9 @@ export default function SortingEditorModal({
     const tooFewBuckets = buckets.length < 1;
     const tooFewCards = cards.length < 1;
 
+    // ✅ recommended: require an answer for each card
+    const missingAnswerKey = cards.some((c) => !answerKey[c.id]);
+
     return {
       titleEmpty,
       promptEmpty,
@@ -103,6 +130,7 @@ export default function SortingEditorModal({
       cardDupes,
       tooFewBuckets,
       tooFewCards,
+      missingAnswerKey,
       hasAny:
         titleEmpty ||
         promptEmpty ||
@@ -111,9 +139,10 @@ export default function SortingEditorModal({
         bucketDupes ||
         cardDupes ||
         tooFewBuckets ||
-        tooFewCards,
+        tooFewCards ||
+        missingAnswerKey,
     };
-  }, [title, prompt, buckets, cards]);
+  }, [title, prompt, buckets, cards, answerKey]);
 
   const addBucket = () => {
     setTouched(true);
@@ -123,6 +152,7 @@ export default function SortingEditorModal({
   const removeBucket = (bucketId: string) => {
     setTouched(true);
     setBuckets((prev) => prev.filter((b) => b.id !== bucketId));
+    // answerKey cleanup handled by useEffect([cards,buckets])
   };
 
   const updateBucket = (bucketId: string, label: string) => {
@@ -134,12 +164,18 @@ export default function SortingEditorModal({
 
   const addCard = () => {
     setTouched(true);
-    setCards((prev) => [...prev, { id: makeId("card"), text: "" }]);
+    const id = makeId("card");
+    setCards((prev) => [...prev, { id, text: "" }]);
   };
 
   const removeCard = (cardId: string) => {
     setTouched(true);
     setCards((prev) => prev.filter((c) => c.id !== cardId));
+    setAnswerKey((prev) => {
+      const next = { ...prev };
+      delete next[cardId];
+      return next;
+    });
   };
 
   const updateCard = (cardId: string, text: string) => {
@@ -157,7 +193,6 @@ export default function SortingEditorModal({
 
     const out: SortingStep = step
       ? {
-          // ✅ edit mode: preserve identity + created fields
           ...step,
           title: title.trim(),
           isOptional,
@@ -165,27 +200,29 @@ export default function SortingEditorModal({
           prompt: prompt.trim(),
           buckets: buckets.map((b) => ({ id: b.id, label: b.label.trim() })),
           cards: cards.map((c) => ({ id: c.id, text: c.text.trim() })),
+          answerKey,
         }
       : {
-          // ✅ create mode: generate required base fields
           id: makeId("step"),
           moduleId,
           type: "sorting",
           title: title.trim(),
           order: 0,
           isOptional,
-          createdBy: "admin", // TODO: replace with actual userId if available in other modals
+          createdBy: "admin", // TODO: replace with actual userId if your other modals do that
           createdAt: now,
           updatedAt: now,
-
           prompt: prompt.trim(),
           buckets: buckets.map((b) => ({ id: b.id, label: b.label.trim() })),
           cards: cards.map((c) => ({ id: c.id, text: c.text.trim() })),
+          answerKey,
         };
 
     onSave(out);
     onClose();
   };
+
+  const noUsableBuckets = buckets.every((b) => !b.label.trim());
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -196,7 +233,7 @@ export default function SortingEditorModal({
               {isEdit ? "Edit Sorting Question" : "Sorting Question"}
             </h2>
             <p className="text-gray-600 text-sm">
-              Configure buckets and cards.
+              Configure buckets, cards, and the answer key.
             </p>
           </div>
 
@@ -279,6 +316,7 @@ export default function SortingEditorModal({
                       </IconButton>
                     )}
                   </Stack>
+
                   <TextField
                     value={b.label}
                     onChange={(e) => updateBucket(b.id, e.target.value)}
@@ -311,6 +349,12 @@ export default function SortingEditorModal({
               </Typography>
             )}
 
+            {touched && errors.missingAnswerKey && (
+              <Typography sx={{ color: "error.main" }}>
+                Please select a correct bucket for every card (answer key).
+              </Typography>
+            )}
+
             <Stack spacing={1}>
               {cards.map((c, idx) => (
                 <Box
@@ -338,6 +382,7 @@ export default function SortingEditorModal({
                       </IconButton>
                     )}
                   </Stack>
+
                   <TextField
                     value={c.text}
                     onChange={(e) => updateCard(c.id, e.target.value)}
@@ -350,6 +395,41 @@ export default function SortingEditorModal({
                       touched && c.text.trim().length === 0 ? "Card text is required." : " "
                     }
                   />
+
+                  {/* ✅ Answer key selector */}
+                  <TextField
+                    select
+                    label="Correct bucket (answer key)"
+                    value={answerKey[c.id] ?? ""}
+                    onChange={(e) => {
+                      setTouched(true);
+                      const bucketId = e.target.value;
+                      setAnswerKey((prev) => ({
+                        ...prev,
+                        [c.id]: bucketId,
+                      }));
+                    }}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                    disabled={noUsableBuckets}
+                    error={touched && !answerKey[c.id]}
+                    helperText={
+                      noUsableBuckets
+                        ? "Add at least one bucket label first."
+                        : touched && !answerKey[c.id]
+                        ? "Choose the correct bucket for this card."
+                        : "Pick which bucket is considered correct for grading after submit."
+                    }
+                  >
+                    <MenuItem value="">
+                      <em>(Select a bucket)</em>
+                    </MenuItem>
+                    {buckets.map((b) => (
+                      <MenuItem key={b.id} value={b.id} disabled={!b.label.trim()}>
+                        {b.label.trim() || "(Unnamed bucket)"}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Box>
               ))}
             </Stack>
