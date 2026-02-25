@@ -49,6 +49,23 @@ function cardCountInContainer(placements: Placements, containerId: ContainerId) 
   return count;
 }
 
+function cleanAnswerKey(
+  answerKey: Record<string, string>,
+  cards: { id: string }[],
+  buckets: { id: string }[]
+) {
+  const cardIds = new Set(cards.map(c => c.id));
+  const bucketIds = new Set(buckets.map(b => b.id));
+
+  const cleaned: Record<string, string> = {};
+  for (const [cardId, bucketId] of Object.entries(answerKey ?? {})) {
+    if (cardIds.has(cardId) && bucketIds.has(bucketId)) {
+      cleaned[cardId] = bucketId;
+    }
+  }
+  return cleaned;
+}
+
 export default function SortingStepView({
   step,
   onSubmittedChange,
@@ -108,7 +125,7 @@ export default function SortingStepView({
     if (!submitted) return null;
     if (!hasAnswerKey) return null;
 
-    const correctBucketId = step.answerKey?.[cardId];
+    const correctBucketId = cleanedAnswerKey[cardId];
     if (!correctBucketId) return null; // unknown key for this card
 
     const placed = placements[cardId] ?? "bank";
@@ -132,6 +149,13 @@ export default function SortingStepView({
     setSubmitted(true);
     onSubmittedChange?.(true);
   };
+
+  const cleanedAnswerKey = useMemo(
+      () => cleanAnswerKey(step.answerKey ?? {}, step.cards ?? [], step.buckets ?? []),
+      [step.answerKey, step.cards, step.buckets]
+    );
+
+  const hasAnswerKey = Object.keys(cleanedAnswerKey).length > 0;
 
   // -------- DnD handlers (more reliable) --------
   const onCardDragStart = (e: React.DragEvent, cardId: string) => {

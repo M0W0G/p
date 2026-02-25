@@ -9,7 +9,7 @@ import FreeResponseEditorModal from "./step-editors/FreeResponseEditorModal";
 import PollEditorModal from "./step-editors/PollEditorModal";
 import SortingEditorModal from "./step-editors/SortingEditorModal";
 
-interface AddFeatureModalProps {
+interface AddStepModalProps {
   moduleId: string;
   onClose: () => void;
   onSave: (step: Step) => void;
@@ -143,11 +143,11 @@ const stepTypes: {
     },
   ];
 
-export default function AddFeatureModal({
+export default function AddStepModal({
   moduleId,
   onClose,
   onSave,
-}: AddFeatureModalProps) {
+}: AddStepModalProps) {
   const [selectedType, setSelectedType] = useState<StepType | null>(null);
 
   if (selectedType) {
@@ -206,6 +206,8 @@ export default function AddFeatureModal({
             onSave={onSave}
           />
         );
+      default:
+        return null;
     }
   }
 

@@ -154,26 +154,33 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
     newSteps.splice(draggedIndex, 1);
     newSteps.splice(dropIndex, 0, draggedStep);
 
-    // Update local steps
-    setSteps(newSteps);
+    // ✅ reindex order
+    const reOrdered = newSteps.map((s, i) => ({ ...s, order: i }));
+
+    setSteps(reOrdered);
     setDraggedIndex(null);
   };
 
   // New handler for saving steps from modals
   const handleStepSave = (savedStep: Step) => {
-    setSteps(prev => {
-      // Check if updating existing
-      const index = prev.findIndex(s => s.id === savedStep.id);
-      if (index >= 0) {
-        const newSteps = [...prev];
-        newSteps[index] = savedStep;
-        return newSteps;
-      } else {
-        // Add new
-        return [...prev, savedStep];
-      }
-    });
-  };
+  // ✅ ensure sorting has answerKey
+  if (savedStep.type === "sorting") {
+    (savedStep as any).answerKey = (savedStep as any).answerKey ?? {};
+  }
+
+  setSteps((prev) => {
+    const index = prev.findIndex((s) => s.id === savedStep.id);
+
+    if (index >= 0) {
+      const newSteps = [...prev];
+      newSteps[index] = savedStep;
+      return newSteps;
+    }
+
+    // ✅ make sure new steps get an order
+    return [...prev, { ...savedStep, order: prev.length }];
+  });
+};
 
   const getStepIcon = (type: Step["type"]) => {
     switch (type) {
@@ -238,6 +245,22 @@ export default function ModuleEditor({ moduleId, onClose }: ModuleEditorProps) {
               strokeLinejoin="round"
               strokeWidth={2}
               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
+        );
+      case "sorting":
+        return (
+          <svg
+            className="w-5 h-5 text-cyan-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 7h7M3 12h11M3 17h7M14 7h7M18 7v10m0 0l-2-2m2 2l2-2"
             />
           </svg>
         );

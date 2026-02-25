@@ -115,8 +115,8 @@ export default function SortingEditorModal({
     const bucketDupes = hasDuplicates(buckets.map((b) => b.label));
     const cardDupes = hasDuplicates(cards.map((c) => c.text));
 
-    const tooFewBuckets = buckets.length < 1;
-    const tooFewCards = cards.length < 1;
+    const tooFewBuckets = buckets.length < 2;
+    const tooFewCards = cards.length < 2;
 
     // ✅ recommended: require an answer for each card
     const missingAnswerKey = cards.some((c) => !answerKey[c.id]);
@@ -191,6 +191,16 @@ export default function SortingEditorModal({
 
     const now = new Date();
 
+    const cardIds = new Set(cards.map(c => c.id));
+    const bucketIds = new Set(buckets.map(b => b.id));
+
+    const cleanedAnswerKey: Record<string, string> = {};
+    for (const [cardId, bucketId] of Object.entries(answerKey)) {
+      if (cardIds.has(cardId) && bucketIds.has(bucketId)) {
+        cleanedAnswerKey[cardId] = bucketId;
+      }
+    }
+
     const out: SortingStep = step
       ? {
           ...step,
@@ -200,22 +210,22 @@ export default function SortingEditorModal({
           prompt: prompt.trim(),
           buckets: buckets.map((b) => ({ id: b.id, label: b.label.trim() })),
           cards: cards.map((c) => ({ id: c.id, text: c.text.trim() })),
-          answerKey,
+          answerKey: cleanedAnswerKey,
         }
       : {
-          id: makeId("step"),
+          id: `temp-${Date.now()}`,
           moduleId,
           type: "sorting",
           title: title.trim(),
           order: 0,
           isOptional,
-          createdBy: "admin", // TODO: replace with actual userId if your other modals do that
+          createdBy: step?.createdBy ?? "unknown", // TODO: replace with actual userId if your other modals do that
           createdAt: now,
           updatedAt: now,
           prompt: prompt.trim(),
           buckets: buckets.map((b) => ({ id: b.id, label: b.label.trim() })),
           cards: cards.map((c) => ({ id: c.id, text: c.text.trim() })),
-          answerKey,
+          answerKey: cleanedAnswerKey,
         };
 
     onSave(out);
@@ -225,8 +235,8 @@ export default function SortingEditorModal({
   const noUsableBuckets = buckets.every((b) => !b.label.trim());
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
@@ -245,7 +255,7 @@ export default function SortingEditorModal({
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           <Stack spacing={2}>
             <TextField
               label="Step Title"

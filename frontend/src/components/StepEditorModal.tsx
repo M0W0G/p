@@ -1,7 +1,6 @@
 "use client";
 
-import { Step } from "@/lib/firebase/types";
-import type { SortingStep } from "@/lib/firebase/types";
+import type { Step } from "@/lib/firebase/types";
 
 import VideoEditorModal from "./step-editors/VideoEditorModal";
 import QuizEditorModal from "./step-editors/QuizEditorModal";
@@ -74,7 +73,7 @@ export default function StepEditorModal({
       return (
         <SortingEditorModal
           moduleId={moduleId}
-          step={step as SortingStep}
+          step={step}
           onClose={onClose}
           onBack={handleBack}
           onSave={onSave}

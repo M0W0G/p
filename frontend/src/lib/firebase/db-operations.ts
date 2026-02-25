@@ -18,6 +18,7 @@ import {
   orderBy,
   arrayRemove,
 } from "firebase/firestore";
+
 import {
   User,
   Module,
@@ -26,9 +27,20 @@ import {
   StepType,
   STEP_COLLECTIONS,
   JournalEntry,
-  PollOption,
   PollStep,
 } from "./types";
+
+// ✅ Helper: normalize any step coming from Firestore
+function normalizeStepFromFirestore(id: string, data: any): Step {
+  if (data?.type === "sorting") {
+    return {
+      id,
+      ...data,
+      answerKey: data.answerKey ?? {},
+    } as Step;
+  }
+  return { id, ...data } as Step;
+}
 
 // Module CRUD operations
 
@@ -89,6 +101,7 @@ export const deleteModule = async (
   deleteSteps: boolean = true,
 ) => {
   const moduleDocRef = doc(db!, "modules", moduleId);
+
   if (deleteSteps) {
     // Delete from all step subcollections
     const batch = writeBatch(db!);
@@ -97,6 +110,7 @@ export const deleteModule = async (
       "quiz",
       "flashcards",
       "freeResponse",
+      "sorting",
       "poll",
     ];
 
@@ -114,6 +128,7 @@ export const deleteModule = async (
 
     await batch.commit();
   }
+
   await deleteDoc(moduleDocRef);
 };
 
@@ -126,23 +141,23 @@ export const getStepById = async (
   const collectionName = STEP_COLLECTIONS[type];
   const stepDocRef = doc(db!, "modules", moduleId, collectionName, stepId);
   const stepDoc = await getDoc(stepDocRef);
-  if (stepDoc.exists()) {
-    return { id: stepDoc.id, ...stepDoc.data() } as Step;
-  } else {
-    throw new Error("Step not found");
-  }
+
+  if (!stepDoc.exists()) throw new Error("Step not found");
+
+  const data = stepDoc.data() as any;
+  return normalizeStepFromFirestore(stepDoc.id, data);
 };
 
 // Get steps by module ID (queries all step subcollections)
 export const getStepsByModuleId = async (moduleId: string): Promise<Step[]> => {
   const allSteps: Step[] = [];
 
-  // Query each subcollection type
   const collectionNames: StepType[] = [
     "video",
     "quiz",
     "flashcards",
     "freeResponse",
+    "sorting",
     "poll",
   ];
 
@@ -153,16 +168,15 @@ export const getStepsByModuleId = async (moduleId: string): Promise<Step[]> => {
       const stepsQuery = query(stepsRef, orderBy("order", "asc"));
       const stepsSnapshot = await getDocs(stepsQuery);
 
-      const steps = stepsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Step[];
+      const steps = stepsSnapshot.docs.map((d) => {
+        const data = d.data() as any;
+        return normalizeStepFromFirestore(d.id, data);
+      });
 
       allSteps.push(...steps);
     }),
   );
 
-  // Sort all steps by order
   return allSteps.sort((a, b) => a.order - b.order);
 };
 
@@ -180,7 +194,6 @@ export const createStep = async (
     updatedAt: serverTimestamp(),
   };
 
-  // Route to correct subcollection based on type
   const collectionName = STEP_COLLECTIONS[stepData.type];
   const stepsRef = collection(db!, "modules", moduleId, collectionName);
   const stepDocRef = await addDoc(stepsRef, newStep);
@@ -195,6 +208,7 @@ export const createStep = async (
       updatedAt: serverTimestamp(),
     });
   }
+
   return { id: stepDocRef.id, ...stepData } as Step;
 };
 
@@ -206,6 +220,7 @@ export const updateStep = async (
 ) => {
   const collectionName = STEP_COLLECTIONS[type];
   const stepDocRef = doc(db!, "modules", moduleId, collectionName, stepId);
+
   await updateDoc(stepDocRef, {
     ...stepData,
     updatedAt: serverTimestamp(),
@@ -231,7 +246,7 @@ export const deleteStep = async (
   if (moduleDoc.exists()) {
     const currentCount = moduleDoc.data().stepCount || 0;
     await updateDoc(moduleDocRef, {
-      stepCount: Math.max(0, currentCount - 1), // Don't go below 0
+      stepCount: Math.max(0, currentCount - 1),
       updatedAt: serverTimestamp(),
     });
   }
@@ -358,7 +373,6 @@ export const markStepCompleted = async (
       });
     }
   } else {
-    // Create new progress if none exists
     await setDoc(progressRef, {
       completedStepIds: [stepId],
       lastViewedAt: serverTimestamp(),
@@ -391,14 +405,13 @@ export const updateQuizScore = async (
       lastViewedAt: serverTimestamp(),
     });
   } else {
-    // Create new progress if none exists
     const quizScores: { [stepId: string]: number } = {};
     quizScores[stepId] = score;
 
     await setDoc(progressRef, {
       completedStepIds: [],
       lastViewedAt: serverTimestamp(),
-      quizScores: quizScores,
+      quizScores,
       pollVotes: {},
       startedAt: serverTimestamp(),
       completedAt: null,
@@ -414,7 +427,7 @@ export const completeModule = async (userId: string, moduleId: string) => {
   });
 };
 
-// Query helpers (getPublicModules, getUserModules, etc.)
+// Query helpers
 
 export const getPublicModules = async (): Promise<Module[]> => {
   const modulesRef = collection(db!, "modules");
@@ -461,7 +474,6 @@ export const getJournalEntries = async (
       ...doc.data(),
     })) as JournalEntry[];
   } catch (error) {
-    // If collection doesn't exist, return empty array
     console.log("Journal collection does not exist yet for user:", userId);
     return [];
   }
@@ -501,9 +513,8 @@ export const createJournalEntry = async (
   entryData: Partial<JournalEntry>,
 ): Promise<JournalEntry> => {
   try {
-    // Ensure user document exists first
     const userDocRef = doc(db!, "users", userId);
-    const userDoc = await getDoc(userDocRef);
+    await getDoc(userDocRef);
 
     const newEntry = {
       ...entryData,
@@ -513,8 +524,6 @@ export const createJournalEntry = async (
 
     const journalRef = collection(db!, "users", userId, "journal");
     const entryDocRef = await addDoc(journalRef, newEntry);
-
-    console.log("Journal entry created successfully:", entryDocRef.id);
 
     return {
       id: entryDocRef.id,
@@ -571,35 +580,28 @@ export const saveFreeResponseToJournal = async (
     const journalRef = doc(db!, "users", userId, "journal", moduleId);
     const journalDoc = await getDoc(journalRef);
 
-    // Each entry is [prompt, answer]
     const newEntry: [string, string] = [prompt, answer];
 
     if (journalDoc.exists()) {
       const data = journalDoc.data();
       let body: Record<string, [string, string]>;
 
-      // Handle different body types
       if (typeof data.body === "string") {
-        // If body is a string (regular journal entry), convert to object structure
         body = {};
       } else if (typeof data.body === "object" && data.body !== null) {
-        // If body is already an object (module-linked entry), use it
         body = data.body as Record<string, [string, string]>;
       } else {
-        // If body is null/undefined, create new object
         body = {};
       }
 
-      // upsert this step
       body[stepId] = newEntry;
 
       await updateDoc(journalRef, {
         body,
-        moduleId, // keep moduleId consistent
+        moduleId,
         updatedAt: serverTimestamp(),
       });
     } else {
-      // Create new doc with a body map
       await setDoc(journalRef, {
         title: moduleTitle,
         moduleId,
@@ -631,7 +633,6 @@ export const submitPollVote = async (
   }
 
   try {
-    // Get the current poll step
     const pollRef = doc(db!, "modules", moduleId, "polls", stepId);
     const pollDoc = await getDoc(pollRef);
 
@@ -641,7 +642,6 @@ export const submitPollVote = async (
 
     const pollData = pollDoc.data() as PollStep;
 
-    // Get user progress to check if already voted
     const progressRef = doc(db!, "users", userId, "progress", moduleId);
     const progressDoc = await getDoc(progressRef);
 
@@ -650,12 +650,10 @@ export const submitPollVote = async (
 
     if (progressDoc.exists()) {
       progressData = progressDoc.data();
-      // Check if user has already voted and store previous vote
       if (progressData.pollVotes && progressData.pollVotes[stepId]) {
         previousVoteIds = progressData.pollVotes[stepId];
       }
     } else {
-      // Create new progress if none exists
       progressData = {
         completedStepIds: [],
         lastViewedAt: serverTimestamp(),
@@ -666,28 +664,18 @@ export const submitPollVote = async (
       };
     }
 
-    // Update poll votes in user progress
     const currentPollVotes = progressData.pollVotes || {};
     currentPollVotes[stepId] = selectedOptionIds;
 
-    // Update vote counts on the poll - remove previous vote and add new vote
     const updatedOptions = pollData.options.map((option) => {
       let voteChange = 0;
 
-      // Remove vote from previous selection
-      if (previousVoteIds.includes(option.id)) {
-        voteChange -= 1;
-      }
-
-      // Add vote to new selection
-      if (selectedOptionIds.includes(option.id)) {
-        voteChange += 1;
-      }
+      if (previousVoteIds.includes(option.id)) voteChange -= 1;
+      if (selectedOptionIds.includes(option.id)) voteChange += 1;
 
       return { ...option, votes: Math.max(0, option.votes + voteChange) };
     });
 
-    // Run both operations in parallel
     await Promise.all([
       updateDoc(pollRef, {
         options: updatedOptions,

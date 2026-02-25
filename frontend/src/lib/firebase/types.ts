@@ -73,8 +73,8 @@ export interface StepBase {
   estimatedMinutes?: number;
   isOptional: boolean;
   createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
 }
 
 export type StepType = "video" | "quiz" | "flashcards" | "freeResponse" | "sorting" | "poll";
@@ -104,7 +104,7 @@ export interface QuizStep extends StepBase {
   type: "quiz";
   shuffle: boolean;
   questions: QuizQuestion[];
-  passingScore: number; // 0-100
+  passingScore: number;
 }
 
 export interface FlashcardsStep extends StepBase {
@@ -119,6 +119,7 @@ export interface FreeResponseStep extends StepBase {
   sampleAnswer?: string;
   maxLength?: number;
 }
+
 export interface SortingBucket {
   id: string;
   label: string;
@@ -132,8 +133,8 @@ export interface SortingCard {
 export interface SortingStep extends StepBase {
   type: "sorting";
   prompt: string;
-  buckets: { id: string; label: string }[];
-  cards: { id: string; text: string }[];
+  buckets: SortingBucket[];
+  cards: SortingCard[];
   answerKey?: Record<string, string>;
 }
 
@@ -151,9 +152,9 @@ export type Step = VideoStep | QuizStep | FlashcardsStep | FreeResponseStep | So
 export interface JournalEntry {
   id: string;
   title: string;
-  body: string;
+  body: string | Record<string, [string, string]>;
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
-  moduleId?: string; // optional - for future module association
-  stepId?: string;   // optional - for future step association
+  moduleId?: string; 
+  stepId?: string; 
 }
