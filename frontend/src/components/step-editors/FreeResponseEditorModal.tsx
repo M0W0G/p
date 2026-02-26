@@ -49,6 +49,7 @@ export default function FreeResponseEditorModal({ moduleId, onClose, onBack, ste
     try {
       const stepData: FreeResponseStep = {
         id: step?.id || uuidv4(),
+        moduleId,
         type: 'freeResponse',
         title: formData.title.trim(),
         prompt: formData.prompt.trim(),

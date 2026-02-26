@@ -65,14 +65,15 @@ export interface PollOption {
 // Base Step Interface
 export interface StepBase {
   id: string;
+  moduleId: string;
   type: StepType;
   title: string;
   order: number;
   estimatedMinutes?: number;
   isOptional: boolean;
   createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
 }
 
 export type StepType =
@@ -80,6 +81,7 @@ export type StepType =
   | "quiz"
   | "flashcards"
   | "freeResponse"
+  | "sorting"
   | "poll"
   | "additionalResources";
 
@@ -89,6 +91,7 @@ export const STEP_COLLECTIONS = {
   quiz: "quizzes",
   flashcards: "flashcards",
   freeResponse: "freeResponses",
+  sorting: "sorting",
   poll: "polls",
   additionalResources: "additionalResources",
 } as const;
@@ -123,7 +126,7 @@ export interface QuizStep extends StepBase {
   type: "quiz";
   shuffle: boolean;
   questions: QuizQuestion[];
-  passingScore: number; // 0-100
+  passingScore: number;
 }
 
 export interface FlashcardsStep extends StepBase {
@@ -139,6 +142,24 @@ export interface FreeResponseStep extends StepBase {
   maxLength?: number;
 }
 
+export interface SortingBucket {
+  id: string;
+  label: string;
+}
+
+export interface SortingCard {
+  id: string;
+  text: string;
+}
+
+export interface SortingStep extends StepBase {
+  type: "sorting";
+  prompt: string;
+  buckets: SortingBucket[];
+  cards: SortingCard[];
+  answerKey?: Record<string, string>;
+}
+
 export interface PollStep extends StepBase {
   type: "poll";
   question: string;
@@ -152,6 +173,7 @@ export type Step =
   | QuizStep
   | FlashcardsStep
   | FreeResponseStep
+  | SortingStep
   | PollStep
   | AdditionalResourcesStep;
 
@@ -159,7 +181,7 @@ export type Step =
 export interface JournalEntry {
   id: string;
   title: string;
-  body: string;
+  body: string | Record<string, [string, string]>;
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
   moduleId?: string; // optional - for future module association

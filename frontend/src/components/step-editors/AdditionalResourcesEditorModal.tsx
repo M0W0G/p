@@ -12,6 +12,7 @@ interface AddResourcesModalProps {
   moduleId: string;
   onClose: () => void;
   onBack: () => void;
+  onSave: (step: any) => void;
   step?: AdditionalResourcesStep;
 }
 
@@ -22,11 +23,12 @@ interface Resource {
   type: 'link' | 'pdf';
 }
 
-export default function AdditionalResourcesEditorModal({ 
-  moduleId, 
-  onClose, 
-  onBack, 
-  step 
+export default function AdditionalResourcesEditorModal({
+  moduleId,
+  onClose,
+  onBack,
+  onSave,
+  step
 }: AddResourcesModalProps) {
   const { modules, createNewStep, updateStepData, userId } = useModuleStore();
   const module = modules.find(m => m.id === moduleId);
@@ -229,6 +231,7 @@ const handleSave = async () => {
       // Create new step
       const order = module?.steps?.length || 0;
       const stepData = {
+        moduleId,
         type: 'additionalResources' as const,
         title: formData.title.trim(),
         resources: resourcesData as any,

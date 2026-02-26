@@ -71,6 +71,7 @@ export default function FlashcardsEditorModal({ moduleId, onClose, onBack, step,
     try {
       const stepData: FlashcardsStep = {
         id: step?.id || uuidv4(),
+        moduleId,
         type: 'flashcards',
         title: formData.title.trim(),
         cards: validCards.map(card => ({

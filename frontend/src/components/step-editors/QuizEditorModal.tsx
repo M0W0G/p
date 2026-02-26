@@ -188,6 +188,7 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step, onSav
     try {
       const stepData: QuizStep = {
         id: step?.id || uuidv4(),
+        moduleId,
         type: 'quiz',
         title: formData.title.trim(),
         questions: cleanedQuestions,

@@ -26,6 +26,17 @@ import {
   deleteStep,
 } from '@/lib/firebase/db-operations';
 
+const normalizeStepForSave = (step: Step, order: number): Step => {
+  if (step.type === "sorting") {
+    return {
+      ...step,
+      order,
+      answerKey: (step as any).answerKey ?? {},
+    } as Step;
+  }
+  return { ...step, order } as Step;
+};
+
 /**
  * MODULE WITH STEPS
  *
@@ -518,8 +529,9 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
           title: moduleData.title,
           description: moduleData.description,
           order: moduleData.order,
+          stepCount: steps.length,
         });
-        savedModule = { ...selectedModule, ...moduleData };
+        savedModule = { ...selectedModule, ...moduleData, stepCount: steps.length };
 
         // Handle steps:
         // 1. Identify existing steps vs new steps vs deleted steps
@@ -537,11 +549,13 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
         // Save/Update current steps
         const savedSteps = await Promise.all(steps.map(async (step, index) => {
           // Update order based on array position
-          const stepWithOrder = { ...step, order: index };
+          const stepWithOrder = normalizeStepForSave(step, index);
 
           // Check if it's a new step (we can check if it exists in DB, or use a convention. 
           // Since we generate UUIDs for drafts, checking against original module steps is safer).
-          const isExisting = selectedModule.steps.some(s => s.id === step.id);
+          const isExisting =
+            !step.id.startsWith("temp-") &&
+            selectedModule.steps.some((s) => s.id === step.id);
 
           if (isExisting) {
             // Update
@@ -571,9 +585,11 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
         // Update local state with the result
         set((state) => ({
           modules: state.modules.map((m) =>
-            m.id === selectedModule.id ? { ...savedModule, steps: savedSteps } : m
+            m.id === selectedModule.id
+              ? { ...savedModule, stepCount: savedSteps.length, steps: savedSteps }
+              : m
           ),
-          selectedModule: { ...savedModule, steps: savedSteps },
+          selectedModule: { ...savedModule, stepCount: savedSteps.length, steps: savedSteps },
           isLoading: false,
         }));
 
@@ -593,15 +609,16 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
         savedModule = newModule;
 
         // Create all steps
-        const savedSteps = await Promise.all(steps.map(async (step, index) => {
-          const { id, ...stepData } = step;
-          // Ensure order is correct
-          const dataToSave = { ...stepData, order: index };
-          return await createStep(newModule.id, dataToSave);
-        }));
+        const savedSteps = await Promise.all(
+          steps.map(async (step, index) => {
+            const normalized = normalizeStepForSave(step, index);
+            const { id, ...stepData } = normalized;
+            return await createStep(newModule.id, stepData);
+          })
+        );
 
         set((state) => ({
-          modules: [...state.modules, { ...savedModule, steps: savedSteps }],
+          modules: [...state.modules, { ...savedModule, stepCount: savedSteps.length, steps: savedSteps }],
           isLoading: false,
         }));
       }

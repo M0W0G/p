@@ -17,6 +17,7 @@ import {
   QuizStep,
   FlashcardsStep,
   FreeResponseStep,
+  SortingStep,
   PollStep,
   AdditionalResourcesStep,
   UserProgress,
@@ -25,6 +26,7 @@ import FreeResponseStepView from "./FreeResponseStepView";
 import VideoStepView from "./VideoStepView";
 import FlashcardsStepView from "./FlashcardsStepView";
 import QuizStepView from "./QuizStepView";
+import SortingStepView from "./SortingStepView";
 import PollStepView from "./PollStepView";
 import AdditionalResourcesStepView from "./AdditionalResourcesStepView";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -152,6 +154,18 @@ export default function ModuleContentMUI({
 
     fetchFreeResponse();
   }, [showSteps, steps, currentStepIndex, userId, freeResponsesByStepId]);
+
+  useEffect(() => {
+    if (!showSteps || steps.length === 0) return;
+
+    const s = steps[currentStepIndex];
+
+    if (s.type === "sorting") {
+      setNextEnabled(false); // require submit
+    } else if (s.type !== "quiz") {
+      setNextEnabled(true);  // allow next for others
+    }
+  }, [showSteps, steps, currentStepIndex]);
 
   // Keep user progress updated
   const refreshProgress = () => {
@@ -388,6 +402,12 @@ export default function ModuleContentMUI({
                 onChangeResponse={(value) =>
                   handleFreeResponseChange(currentStep.id, value)
                 }
+              />
+            )}
+            {currentStep.type === "sorting" && (
+              <SortingStepView
+                step={currentStep as SortingStep}
+                onSubmittedChange={(ok) => setNextEnabled(ok)}
               />
             )}
             {currentStep.type === "poll" && (
