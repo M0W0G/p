@@ -46,7 +46,7 @@ export default function VideoStepView({ step }: VideoStepProps) {
             mb: 3,
           }}
         >
-          Watch the Video
+         
         </Typography>
 
         {/* YouTube Video Embed */}

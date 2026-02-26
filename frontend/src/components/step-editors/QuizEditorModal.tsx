@@ -1,29 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { QuizStep, QuizQuestion } from '@/lib/firebase/types';
 import { useModuleStore } from '@/store/moduleStore';
+import { useAlert } from '@/context/AlertContext';
+import { v4 as uuidv4 } from 'uuid';
+import { uploadStepImage, getImageFromClipboard } from '@/lib/firebase/uploadStepImage';
 
 interface QuizEditorModalProps {
   moduleId: string;
   onClose: () => void;
   onBack: () => void;
   step?: QuizStep;
+  onSave: (step: QuizStep) => void;
 }
 
-export default function QuizEditorModal({ moduleId, onClose, onBack, step }: QuizEditorModalProps) {
-  const { modules, createNewStep, updateStepData, userId } = useModuleStore();
-  const module = modules.find(m => m.id === moduleId);
+export default function QuizEditorModal({ moduleId, onClose, onBack, step, onSave }: QuizEditorModalProps) {
+  const { userId } = useModuleStore();
+  const { showAlert } = useAlert();
 
   const [formData, setFormData] = useState({
     title: step?.title || '',
-    questions: step?.questions || [
-      {
-        prompt: '',
-        choices: ['', '', '', ''],
-        correctIndex: 0,
-      },
-    ],
+    questions: step?.questions.map(q => ({
+      ...q,
+      choiceExplanations: q.choiceExplanations || q.choices.map(() => ''),
+    })) || [
+        {
+          prompt: '',
+          choices: ['', '', '', ''],
+          correctIndex: 0,
+          choiceExplanations: ['', '', '', ''],
+        },
+      ],
     shuffle: step?.shuffle || false,
     passingScore: step?.passingScore?.toString() || '70',
     estimatedMinutes: step?.estimatedMinutes?.toString() || '',
@@ -31,6 +39,12 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeContextRef = useRef<{
+    el: HTMLTextAreaElement;
+    questionIndex: number;
+  } | null>(null);
 
   const addQuestion = () => {
     setFormData({
@@ -41,6 +55,7 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
           prompt: '',
           choices: ['', '', '', ''],
           correctIndex: 0,
+          choiceExplanations: ['', '', '', ''],
         },
       ],
     });
@@ -63,7 +78,13 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
 
   const addChoice = (questionIndex: number) => {
     const newQuestions = [...formData.questions];
-    newQuestions[questionIndex].choices.push('');
+    const question = newQuestions[questionIndex];
+    question.choices.push('');
+    if (!question.choiceExplanations) {
+      question.choiceExplanations = question.choices.map(() => '');
+    } else {
+      question.choiceExplanations.push('');
+    }
     setFormData({ ...formData, questions: newQuestions });
   };
 
@@ -73,6 +94,11 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
 
     if (question.choices.length > 2) {
       question.choices.splice(choiceIndex, 1);
+
+      // Remove corresponding explanation
+      if (question.choiceExplanations) {
+        question.choiceExplanations.splice(choiceIndex, 1);
+      }
 
       // Adjust correct index if necessary
       if (question.correctIndex >= choiceIndex) {
@@ -89,9 +115,56 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
     setFormData({ ...formData, questions: newQuestions });
   };
 
+  const updateChoiceExplanation = (questionIndex: number, choiceIndex: number, value: string) => {
+    const newQuestions = [...formData.questions];
+    const question = newQuestions[questionIndex];
+    if (!question.choiceExplanations) {
+      question.choiceExplanations = question.choices.map(() => '');
+    }
+    question.choiceExplanations[choiceIndex] = value;
+    setFormData({ ...formData, questions: newQuestions });
+  };
+
+  const uploadAndInsert = async (file: File) => {
+    const ctx = activeContextRef.current;
+    if (!ctx || !userId) return;
+    setUploadingImage(true);
+    try {
+      const { url } = await uploadStepImage(file, moduleId, 'quizzes', userId);
+      const { el, questionIndex } = ctx;
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      const imgTag = `<img src="${url}" alt="Image" />`;
+      updateQuestion(questionIndex, 'prompt', el.value.slice(0, start) + imgTag + el.value.slice(end));
+      setTimeout(() => { el.focus(); el.selectionStart = el.selectionEnd = start + imgTag.length; }, 0);
+    } catch (err: any) {
+      await showAlert('Error', err.message ?? 'Failed to upload image', 'error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!activeContextRef.current) {
+      await showAlert('Error', 'Click into a question field before uploading an image', 'error');
+      return;
+    }
+    await uploadAndInsert(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const image = getImageFromClipboard(e);
+    if (!image) return;
+    e.preventDefault();
+    void uploadAndInsert(image);
+  };
+
   const handleSave = async () => {
     if (!formData.title.trim()) {
-      alert('Please enter a quiz title');
+      await showAlert('Validation Error', 'Please enter a quiz title', 'error');
       return;
     }
 
@@ -100,71 +173,84 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
     );
 
     if (validQuestions.length === 0) {
-      alert('Please add at least one valid question');
+      await showAlert('Validation Error', 'Please add at least one valid question', 'error');
       return;
     }
 
     // Clean up questions - remove empty choices and ensure correct index is valid
     const cleanedQuestions = validQuestions.map(q => {
+      const nonEmptyChoices = q.choices.filter(opt => opt.trim());
+      const nonEmptyIndices: number[] = [];
+      let currentIndex = 0;
+
+      // Track which original indices correspond to non-empty choices
+      q.choices.forEach((choice, idx) => {
+        if (choice.trim()) {
+          nonEmptyIndices.push(idx);
+        }
+      });
+
       const question: any = {
         prompt: q.prompt.trim(),
-        choices: q.choices.filter(opt => opt.trim()),
-        correctIndex: Math.min(q.correctIndex, q.choices.filter(opt => opt.trim()).length - 1),
+        choices: nonEmptyChoices,
+        correctIndex: Math.min(q.correctIndex, nonEmptyChoices.length - 1),
       };
+
+      // Process choiceExplanations - align with non-empty choices
+      if (q.choiceExplanations && q.choiceExplanations.length > 0) {
+        const cleanedExplanations = nonEmptyIndices.map(origIdx => {
+          const explanation = q.choiceExplanations?.[origIdx];
+          return explanation?.trim() || null;
+        });
+
+        // Only include if at least one explanation exists
+        if (cleanedExplanations.some(e => e !== null)) {
+          question.choiceExplanations = cleanedExplanations;
+        }
+      }
+
+      // Keep legacy explanation for backward compatibility
       if (q.explanation) {
         question.explanation = q.explanation;
       }
+
       return question;
     });
 
     const passingScore = parseInt(formData.passingScore);
     if (isNaN(passingScore) || passingScore < 0 || passingScore > 100) {
-      alert('Please enter a valid passing score between 0 and 100');
+      await showAlert('Validation Error', 'Please enter a valid passing score between 0 and 100', 'error');
       return;
     }
 
     if (!userId) {
-      alert('User not authenticated');
+      await showAlert('Authentication Error', 'User not authenticated', 'error');
       return;
     }
 
     setIsSaving(true);
     try {
-      if (step) {
-        // Update existing step
-        const updates: any = {
-          title: formData.title.trim(),
-          questions: cleanedQuestions,
-          shuffle: formData.shuffle,
-          passingScore,
-          isOptional: formData.isOptional,
-        };
-        if (formData.estimatedMinutes) {
-          updates.estimatedMinutes = parseInt(formData.estimatedMinutes);
-        }
-        await updateStepData(moduleId, step.id, updates);
-      } else {
-        // Create new step
-        const order = module?.steps.length || 0;
-        const stepData: any = {
-          type: 'quiz',
-          title: formData.title.trim(),
-          questions: cleanedQuestions,
-          shuffle: formData.shuffle,
-          passingScore,
-          isOptional: formData.isOptional,
-          order,
-          createdBy: userId,
-        };
-        if (formData.estimatedMinutes) {
-          stepData.estimatedMinutes = parseInt(formData.estimatedMinutes);
-        }
-        await createNewStep(moduleId, stepData);
-      }
+      const stepData: QuizStep = {
+        id: step?.id || uuidv4(),
+        moduleId,
+        type: 'quiz',
+        title: formData.title.trim(),
+        questions: cleanedQuestions,
+        shuffle: formData.shuffle,
+        passingScore,
+        isOptional: formData.isOptional,
+        order: step?.order ?? 0, // Managed by parent
+        createdBy: step?.createdBy || userId,
+        createdAt: step?.createdAt || new Date(),
+        updatedAt: new Date(),
+        estimatedMinutes: formData.estimatedMinutes ? parseInt(formData.estimatedMinutes) : undefined,
+      };
+
+      onSave(stepData);
       onClose();
     } catch (error: any) {
       console.error('Error saving quiz step:', error);
-      alert(`Failed to save quiz step: ${error.message}`);
+      await showAlert('Error', `Failed to save quiz step: ${error.message}`, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -172,6 +258,13 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        className="hidden"
+        onChange={handleImageUpload}
+      />
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -321,11 +414,25 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
                         <textarea
                           value={question.prompt}
                           onChange={(e) => updateQuestion(questionIndex, 'prompt', e.target.value)}
+                          onFocus={(e) => { activeContextRef.current = { el: e.currentTarget, questionIndex }; }}
+                          onPaste={handlePaste}
                           disabled={isSaving}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                           rows={2}
                           placeholder="Enter question text"
                         />
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingImage || isSaving}
+                          className="mt-1 flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600 transition-colors duration-200 disabled:opacity-50"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {uploadingImage ? 'Uploading...' : 'Upload image'}
+                        </button>
                       </div>
 
                       <div>
@@ -342,36 +449,48 @@ export default function QuizEditorModal({ moduleId, onClose, onBack, step }: Qui
                           </button>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {question.choices.map((choice, choiceIndex) => (
-                            <div key={choiceIndex} className="flex items-center gap-2">
-                              <input
-                                type="radio"
-                                name={`correct-${questionIndex}`}
-                                checked={question.correctIndex === choiceIndex}
-                                onChange={() => updateQuestion(questionIndex, 'correctIndex', choiceIndex)}
-                                disabled={isSaving}
-                                className="text-blue-600 focus:ring-blue-500"
-                              />
-                              <input
-                                type="text"
-                                value={choice}
-                                onChange={(e) => updateChoice(questionIndex, choiceIndex, e.target.value)}
-                                disabled={isSaving}
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                                placeholder={`Choice ${choiceIndex + 1}`}
-                              />
-                              {question.choices.length > 2 && (
-                                <button
-                                  onClick={() => removeChoice(questionIndex, choiceIndex)}
+                            <div key={choiceIndex} className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name={`correct-${questionIndex}`}
+                                  checked={question.correctIndex === choiceIndex}
+                                  onChange={() => updateQuestion(questionIndex, 'correctIndex', choiceIndex)}
                                   disabled={isSaving}
-                                  className="text-red-500 hover:text-red-700 transition-colors duration-200 disabled:opacity-50"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              )}
+                                  className="text-blue-600 focus:ring-blue-500"
+                                />
+                                <input
+                                  type="text"
+                                  value={choice}
+                                  onChange={(e) => updateChoice(questionIndex, choiceIndex, e.target.value)}
+                                  disabled={isSaving}
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                                  placeholder={`Choice ${choiceIndex + 1}`}
+                                />
+                                {question.choices.length > 2 && (
+                                  <button
+                                    onClick={() => removeChoice(questionIndex, choiceIndex)}
+                                    disabled={isSaving}
+                                    className="text-red-500 hover:text-red-700 transition-colors duration-200 disabled:opacity-50"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                              <div className="ml-7">
+                                <input
+                                  type="text"
+                                  value={question.choiceExplanations?.[choiceIndex] || ''}
+                                  onChange={(e) => updateChoiceExplanation(questionIndex, choiceIndex, e.target.value)}
+                                  disabled={isSaving}
+                                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50"
+                                  placeholder="Explanation (optional, shown after submission)"
+                                />
+                              </div>
                             </div>
                           ))}
                         </div>

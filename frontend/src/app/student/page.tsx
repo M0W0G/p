@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import ModuleContentMUI from "@/components/ModuleContentMUI";
 import AuthGate from "@/components/AuthGate";
 import { auth } from "../../lib/firebase/firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
 
 // Force dynamic rendering to prevent static generation issues with Firebase Auth
 export const dynamic = "force-dynamic";
@@ -18,11 +19,15 @@ export default function StudentPage() {
   const [index, setIndex] = useState<number>(0);
   const [userId, setUserId] = useState<string>("");
 
+  // Listener that waits for firebase to check if user is in session
   useEffect(() => {
-    // Only access auth.currentUser in the browser
-    if (typeof window !== "undefined" && auth && auth.currentUser) {
-      setUserId(auth.currentUser.uid);
-    }
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   return (

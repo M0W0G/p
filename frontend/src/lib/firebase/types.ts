@@ -1,6 +1,5 @@
 import { Timestamp } from "firebase/firestore";
 
-
 // User
 
 export interface User {
@@ -17,6 +16,7 @@ export interface UserProgress {
   completedStepIds: string[];
   lastViewedAt: Timestamp;
   quizScores: { [stepId: string]: number };
+  pollVotes: { [stepId: string]: string[] };
   startedAt: Timestamp | Date;
   completedAt: Timestamp | Date | null;
 }
@@ -43,6 +43,9 @@ export interface QuizQuestion {
   prompt: string;
   choices: string[];
   correctIndex: number;
+  // Optional explanations for each choice (aligned by index with choices array)
+  choiceExplanations?: (string | null)[];
+  // Legacy: question-level explanation (kept for backward compatibility)
   explanation?: string;
 }
 
@@ -52,20 +55,35 @@ export interface Flashcard {
   back: string;
 }
 
+// Poll Option (needed by PollStep)
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: number;
+}
+
 // Base Step Interface
 export interface StepBase {
   id: string;
+  moduleId: string;
   type: StepType;
   title: string;
   order: number;
   estimatedMinutes?: number;
   isOptional: boolean;
   createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: Timestamp | Date;
+  updatedAt: Timestamp | Date;
 }
 
-export type StepType = "video" | "quiz" | "flashcards" | "freeResponse";
+export type StepType =
+  | "video"
+  | "quiz"
+  | "flashcards"
+  | "freeResponse"
+  | "sorting"
+  | "poll"
+  | "additionalResources";
 
 // Subcollection name mapping
 export const STEP_COLLECTIONS = {
@@ -73,9 +91,12 @@ export const STEP_COLLECTIONS = {
   quiz: "quizzes",
   flashcards: "flashcards",
   freeResponse: "freeResponses",
+  sorting: "sorting",
+  poll: "polls",
+  additionalResources: "additionalResources",
 } as const;
 
-export type StepCollectionName = typeof STEP_COLLECTIONS[StepType];
+export type StepCollectionName = (typeof STEP_COLLECTIONS)[StepType];
 
 // Specific Step Interfaces
 
@@ -86,11 +107,26 @@ export interface VideoStep extends StepBase {
   durationSec?: number;
 }
 
+export interface AdditionalResourcesStep extends StepBase {
+  type: "additionalResources";
+  resources: {
+    link: string;
+    pdf: string;
+    all?: Array<{
+      // ⭐ ADD THIS OPTIONAL FIELD
+      id: string;
+      name: string;
+      url: string;
+      type: "link" | "pdf";
+    }>;
+  };
+}
+
 export interface QuizStep extends StepBase {
   type: "quiz";
   shuffle: boolean;
   questions: QuizQuestion[];
-  passingScore: number; // 0-100
+  passingScore: number;
 }
 
 export interface FlashcardsStep extends StepBase {
@@ -106,16 +142,48 @@ export interface FreeResponseStep extends StepBase {
   maxLength?: number;
 }
 
+export interface SortingBucket {
+  id: string;
+  label: string;
+}
+
+export interface SortingCard {
+  id: string;
+  text: string;
+}
+
+export interface SortingStep extends StepBase {
+  type: "sorting";
+  prompt: string;
+  buckets: SortingBucket[];
+  cards: SortingCard[];
+  answerKey?: Record<string, string>;
+}
+
+export interface PollStep extends StepBase {
+  type: "poll";
+  question: string;
+  options: PollOption[];
+  allowMultipleChoice: boolean;
+}
+
 // Step type used throughout the app
-export type Step = VideoStep | QuizStep | FlashcardsStep | FreeResponseStep;
+export type Step =
+  | VideoStep
+  | QuizStep
+  | FlashcardsStep
+  | FreeResponseStep
+  | SortingStep
+  | PollStep
+  | AdditionalResourcesStep;
 
 // Journal
 export interface JournalEntry {
   id: string;
   title: string;
-  body: string;
+  body: string | Record<string, [string, string]>;
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
   moduleId?: string; // optional - for future module association
-  stepId?: string;   // optional - for future step association
+  stepId?: string; // optional - for future step association
 }

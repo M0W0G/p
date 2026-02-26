@@ -12,13 +12,12 @@ import Home from "@mui/icons-material/Home";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase/firebaseConfig";
+import { useAuth } from "@/hooks/useAuth";
 import { getUserRole } from "@/lib/firebase/Authentication/GetUserRole";
 import { usePathname } from "next/navigation";
 
 export default function Navbar() {
-  const [user] = useAuthState(auth!);
+  const [user] = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
 
@@ -75,10 +74,10 @@ export default function Navbar() {
             <Image
               src="/philosophy_logo_white_horizontal.png"
               alt="UNC Parr Center for Ethics"
-              width={400}
-              height={60}
+              width={650}
+              height={300}
               priority
-              style={{ height: "auto", maxHeight: "60px" }}
+              style={{ width: "auto", maxHeight: "60px" }}
             />
           </Box>
 
