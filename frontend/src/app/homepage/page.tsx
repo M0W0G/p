@@ -8,18 +8,21 @@ import {
   OpenInNew,
 } from "@mui/icons-material";
 import { useState } from "react";
-import AuthGate from "@/components/AuthGate";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 export const dynamic = "force-dynamic";
 
 export default function HomepagePage() {
+  const [user] = useAuth();
+  const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // Placeholder images - replace with actual images later
   const carouselImages = [
+    "/save-one.jpg",
     "/animal-rescue.jpg",
     "/living.jpg",
-    "/save-one.jpg",
     "/believe.jpg",
   ];
 
@@ -45,7 +48,6 @@ export default function HomepagePage() {
           "linear-gradient(to bottom, white 0%, white 15%, rgba(255, 255, 255, 0.95) 20%, rgba(255, 255, 255, 0.8) 30%, rgba(255, 255, 255, 0.5) 50%, #abd8ff 100%)",
       }}
     >
-      <AuthGate>
         <Box sx={{ py: { xs: 3, md: 6 }, textAlign: "center", position: "relative" }}>
           {/* Background dot grid pattern over white-to-light-blue gradient - matches Modules Page */}
           <Box
@@ -100,20 +102,44 @@ export default function HomepagePage() {
                 Ethics Bowl Academy
               </Typography>
 
-              <Typography
-                variant="h6"
-                component="p"
+              <Box
                 sx={{
-                  fontSize: "1.15rem",
-                  fontWeight: 300,
-                  fontFamily: "Georgia, 'Times New Roman', Times, serif",
-                  color: "#4a5568",
-                  letterSpacing: "0.01em",
-                  lineHeight: 1.3,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: { xs: 1.5, md: 2 },
                 }}
               >
-                Built by the Parr Center for Ethics in collaboration with TED-Ed
-              </Typography>
+                <Box
+                  component="img"
+                  src="/philosophy_logo_white_horizontal.png"
+                  alt="Parr Center for Ethics"
+                  sx={{
+                    height: { xs: "28px", md: "36px" },
+                    width: "auto",
+                    filter: "invert(1) brightness(0.3)",
+                  }}
+                />
+                <Typography
+                  sx={{
+                    fontSize: { xs: "1.2rem", md: "1.5rem" },
+                    fontWeight: 300,
+                    color: "#4a5568",
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </Typography>
+                <Box
+                  component="img"
+                  src="/teded.png"
+                  alt="TED-Ed"
+                  sx={{
+                    height: { xs: "24px", md: "30px" },
+                    width: "auto",
+                  }}
+                />
+              </Box>
             </Box>
 
             {/* Motivation and value blurb */}
@@ -129,15 +155,21 @@ export default function HomepagePage() {
               }}
             >
               Build critical thinking and ethical reasoning skills through
-              interactive modules and structured debate preparation.
+              interactive modules and structured debate preparation
             </Typography>
 
             <Button
               variant="contained"
-              href="/student"
-              endIcon={<ArrowForward sx={{ fontSize: 16, color: "inherit" }} />}
+              onClick={() => router.push(user ? "/student" : "/login")}
+              endIcon={<ArrowForward sx={{ fontSize: 20, color: "inherit" }} />}
+              sx={{
+                fontSize: { xs: "1rem", md: "1.1rem" },
+                px: { xs: 3, md: 4 },
+                py: { xs: 1.2, md: 1.5 },
+                borderRadius: "16px",
+              }}
             >
-              Start Learning Here
+              Start Learning
             </Button>
 
             {/* Image Carousel */}
@@ -373,7 +405,6 @@ export default function HomepagePage() {
             </Box>
           </Box>
         </Box>
-      </AuthGate>
     </Container>
   );
 }
