@@ -107,7 +107,7 @@ function DroppableZone({
         ? "error.main"
         : isOver
           ? "primary.main"
-          : "grey.300";
+          : "grey.600";
 
   const bg =
     correctnessBorder === "success"
