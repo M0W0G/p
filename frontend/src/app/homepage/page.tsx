@@ -376,7 +376,7 @@ export default function HomepagePage() {
                   variant="h5"
                   component="h2"
                   sx={{
-                    fontSize: "1.50rem",
+                    fontSize: "1.25rem",
                     fontWeight: 500,
                     fontFamily: "Georgia, 'Times New Roman', Times, serif",
                     color: "#2c3e50",
