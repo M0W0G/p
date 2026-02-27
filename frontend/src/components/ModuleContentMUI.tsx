@@ -384,6 +384,7 @@ export default function ModuleContentMUI({
             )}
             {currentStep.type === "quiz" && (
               <QuizStepView
+                key={currentStep.id}
                 step={currentStep as QuizStep}
                 quizPassed={nextEnabled}
                 onPassedChange={(value) => handleQuizPassedChange(value)}
@@ -416,6 +417,7 @@ export default function ModuleContentMUI({
             )}
             {currentStep.type === "poll" && (
               <PollStepView
+                key={currentStep.id}
                 step={currentStep as PollStep}
                 stepId={currentStep.id}
                 userId={userId}
